@@ -8,6 +8,10 @@ def main(heightmap_path, color_texture_path):
     if not obj or obj.type != 'MESH':
         raise ValueError("Please select a mesh object (e.g., a cube) before running this script.")
 
+    # Scale the cube to be less tall in the Z direction
+    obj.scale[2] = 0.5
+    bpy.ops.object.transform_apply(scale=True)
+
     mesh = obj.data
 
     # ------------------------------------------------------------------------
