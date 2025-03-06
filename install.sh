@@ -1,4 +1,4 @@
-pip install ipykernel openai pandas requests torch torchaudio torchvision
+pip install ipykernel openai pandas requests torch torchaudio torchvision numpy-stl pillow flask
 # Install Segment Anything
 pip install git+https://github.com/facebookresearch/segment-anything.git
 pip install opencv-python pycocotools matplotlib onnxruntime onnx
