@@ -16,12 +16,13 @@ function ModelViewer({ fileUrl, fileType }) {
     }
   }, [fileUrl, fileType]);
 
-  if (!geometry)
+  if (!geometry) {
     return (
       <div className="flex items-center justify-center h-full text-lg font-medium">
         Loading model...
       </div>
     );
+  }
 
   return (
     <Canvas className="w-full h-full" camera={{ position: [150, 150, 150], fov: 75 }}>
@@ -36,7 +37,9 @@ function ModelViewer({ fileUrl, fileType }) {
 }
 
 function App() {
+  const [useAutoHeightmap, setUseAutoHeightmap] = useState(false);
   const [heightmapFile, setHeightmapFile] = useState(null);
+  const [sourceImageFile, setSourceImageFile] = useState(null);
   const [colorFile, setColorFile] = useState(null);
   const [blockWidth, setBlockWidth] = useState(100);
   const [blockLength, setBlockLength] = useState(100);
@@ -53,8 +56,23 @@ function App() {
     e.preventDefault();
     setLoading(true);
     setResultUrl("");
+
     const formData = new FormData();
-    formData.append("heightmap", heightmapFile);
+    if (useAutoHeightmap) {
+      if (!sourceImageFile) {
+        console.error("No source image selected");
+        setLoading(false);
+        return;
+      }
+      formData.append("source_image", sourceImageFile);
+    } else {
+      if (!heightmapFile) {
+        console.error("No heightmap file selected");
+        setLoading(false);
+        return;
+      }
+      formData.append("heightmap", heightmapFile);
+    }
     if (colorFile) {
       formData.append("color_reference", colorFile);
     }
@@ -81,24 +99,65 @@ function App() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      {/* Page Header */}
       <header className="text-center mb-8">
         <h1 className="text-4xl font-bold">Heightmap to 3D</h1>
       </header>
+
+      {/* Main Content */}
       <main className="space-y-8">
+        {/* Form Container */}
         <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg shadow">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Heightmap (grayscale image)
-              </label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Checkbox to switch between auto‐generation and direct heightmap */}
+            <div className="flex items-center">
               <input
-                type="file"
-                accept="image/*"
-                required
-                onChange={(e) => setHeightmapFile(e.target.files[0])}
-                className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
+                type="checkbox"
+                id="autoHeightmap"
+                checked={useAutoHeightmap}
+                onChange={(e) => setUseAutoHeightmap(e.target.checked)}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
               />
+              <label
+                htmlFor="autoHeightmap"
+                className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+              >
+                Auto-generate heightmap from image
+              </label>
             </div>
+
+            {/* Conditionally show either the source image input or heightmap input */}
+            {useAutoHeightmap ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Source Image (for auto heightmap generation)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  required
+                  onChange={(e) => setSourceImageFile(e.target.files[0])}
+                  className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 
+                             border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Heightmap (grayscale image)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  required
+                  onChange={(e) => setHeightmapFile(e.target.files[0])}
+                  className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 
+                             border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
+                />
+              </div>
+            )}
+
+            {/* Color reference (optional) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Color Reference (optional)
@@ -107,98 +166,120 @@ function App() {
                 type="file"
                 accept="image/*"
                 onChange={(e) => setColorFile(e.target.files[0])}
-                className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
+                className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 
+                           border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Block Width (mm)
-              </label>
-              <input
-                type="number"
-                value={blockWidth}
-                onChange={(e) => setBlockWidth(e.target.value)}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none"
-              />
+
+            {/* Two-column grid for numeric inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Block Width (mm)
+                </label>
+                <input
+                  type="number"
+                  value={blockWidth}
+                  onChange={(e) => setBlockWidth(e.target.value)}
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md 
+                             focus:outline-none dark:bg-gray-700 dark:border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Block Length (mm)
+                </label>
+                <input
+                  type="number"
+                  value={blockLength}
+                  onChange={(e) => setBlockLength(e.target.value)}
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md 
+                             focus:outline-none dark:bg-gray-700 dark:border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Block Thickness (mm)
+                </label>
+                <input
+                  type="number"
+                  value={blockThickness}
+                  onChange={(e) => setBlockThickness(e.target.value)}
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md 
+                             focus:outline-none dark:bg-gray-700 dark:border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Depth (mm)
+                </label>
+                <input
+                  type="number"
+                  value={depth}
+                  onChange={(e) => setDepth(e.target.value)}
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md 
+                             focus:outline-none dark:bg-gray-700 dark:border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Base Height (mm)
+                </label>
+                <input
+                  type="number"
+                  value={baseHeight}
+                  onChange={(e) => setBaseHeight(e.target.value)}
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md 
+                             focus:outline-none dark:bg-gray-700 dark:border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Mode
+                </label>
+                <select
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value)}
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md 
+                             focus:outline-none dark:bg-gray-700 dark:border-gray-600"
+                >
+                  <option value="protrude">Protrude</option>
+                  <option value="carve">Carve</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Block Length (mm)
-              </label>
-              <input
-                type="number"
-                value={blockLength}
-                onChange={(e) => setBlockLength(e.target.value)}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Block Thickness (mm)
-              </label>
-              <input
-                type="number"
-                value={blockThickness}
-                onChange={(e) => setBlockThickness(e.target.value)}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Depth (mm)
-              </label>
-              <input
-                type="number"
-                value={depth}
-                onChange={(e) => setDepth(e.target.value)}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Base Height (mm)
-              </label>
-              <input
-                type="number"
-                value={baseHeight}
-                onChange={(e) => setBaseHeight(e.target.value)}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Mode
-              </label>
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value)}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:outline-none"
-              >
-                <option value="protrude">Protrude</option>
-                <option value="carve">Carve</option>
-              </select>
-            </div>
-            <div className="sm:col-span-2 flex items-center">
+
+            {/* Invert heightmap checkbox */}
+            <div className="flex items-center">
               <input
                 type="checkbox"
+                id="invert"
                 checked={invert}
                 onChange={(e) => setInvert(e.target.checked)}
                 className="h-4 w-4 text-blue-600 border-gray-300 rounded"
               />
-              <label className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+              <label
+                htmlFor="invert"
+                className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+              >
                 Invert Heightmap
               </label>
             </div>
-            <div className="sm:col-span-2">
+
+            {/* Generate button */}
+            <div>
               <button
                 type="submit"
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition disabled:opacity-50"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md 
+                           transition disabled:opacity-50"
                 disabled={loading}
               >
                 {loading ? "Generating..." : "Generate Model"}
               </button>
             </div>
           </form>
+
+          {/* Loading spinner */}
           {loading && (
             <div className="flex items-center justify-center mt-4">
               <svg
@@ -225,6 +306,8 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* If we have a result, show it */}
         {resultUrl && (
           <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow">
             <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">
@@ -251,6 +334,8 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* Footer */}
       <footer className="text-center mt-8 text-gray-600 dark:text-gray-400 text-sm">
         © 2025 Joshua Yin
       </footer>
