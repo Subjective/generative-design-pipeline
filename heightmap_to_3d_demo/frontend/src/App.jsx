@@ -3,14 +3,24 @@ import axios from "axios";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
+import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader";
 
 function ModelViewer({ fileUrl, fileType }) {
   const [geometry, setGeometry] = useState(null);
 
   useEffect(() => {
+    if (!fileUrl) return;
+    setGeometry(null); // reset previous geometry
+
     if (fileType === "stl") {
       const loader = new STLLoader();
       loader.load(fileUrl, (geom) => {
+        setGeometry(geom);
+      });
+    } else if (fileType === "ply") {
+      const loader = new PLYLoader();
+      loader.load(fileUrl, (geom) => {
+        geom.computeVertexNormals();
         setGeometry(geom);
       });
     }
@@ -29,7 +39,11 @@ function ModelViewer({ fileUrl, fileType }) {
       <ambientLight intensity={0.5} />
       <directionalLight intensity={0.5} position={[0, 0, 100]} />
       <mesh geometry={geometry}>
-        <meshStandardMaterial color="lightgray" />
+        {fileType === "ply" ? (
+          <meshStandardMaterial vertexColors={!!geometry.attributes.color} />
+        ) : (
+          <meshStandardMaterial color="lightgray" />
+        )}
       </mesh>
       <OrbitControls />
     </Canvas>
@@ -37,10 +51,10 @@ function ModelViewer({ fileUrl, fileType }) {
 }
 
 function App() {
-  const [useAutoHeightmap, setUseAutoHeightmap] = useState(false);
-  const [heightmapFile, setHeightmapFile] = useState(null);
-  const [sourceImageFile, setSourceImageFile] = useState(null);
-  const [colorFile, setColorFile] = useState(null);
+  // The only file needed is a png image
+  const [image, setImage] = useState(null);
+
+  // Model parameters
   const [blockWidth, setBlockWidth] = useState(100);
   const [blockLength, setBlockLength] = useState(100);
   const [blockThickness, setBlockThickness] = useState(10);
@@ -48,6 +62,8 @@ function App() {
   const [baseHeight, setBaseHeight] = useState(0);
   const [mode, setMode] = useState("protrude");
   const [invert, setInvert] = useState(false);
+
+  // Resulting file
   const [resultUrl, setResultUrl] = useState("");
   const [resultFileType, setResultFileType] = useState("");
   const [loading, setLoading] = useState(false);
@@ -57,25 +73,17 @@ function App() {
     setLoading(true);
     setResultUrl("");
 
+    if (!image) {
+      console.error("No image selected");
+      setLoading(false);
+      return;
+    }
+
+    // Build the form data
     const formData = new FormData();
-    if (useAutoHeightmap) {
-      if (!sourceImageFile) {
-        console.error("No source image selected");
-        setLoading(false);
-        return;
-      }
-      formData.append("source_image", sourceImageFile);
-    } else {
-      if (!heightmapFile) {
-        console.error("No heightmap file selected");
-        setLoading(false);
-        return;
-      }
-      formData.append("heightmap", heightmapFile);
-    }
-    if (colorFile) {
-      formData.append("color_reference", colorFile);
-    }
+    // We'll call this "color_image" on the backend
+    formData.append("color_image", image);
+
     formData.append("block_width", blockWidth);
     formData.append("block_length", blockLength);
     formData.append("block_thickness", blockThickness);
@@ -85,6 +93,7 @@ function App() {
     formData.append("invert", invert ? "true" : "false");
 
     try {
+      // Post to your /api/generate endpoint
       const response = await axios.post("http://127.0.0.1:5000/api/generate", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -101,7 +110,7 @@ function App() {
     <div className="max-w-4xl mx-auto p-6">
       {/* Page Header */}
       <header className="text-center mb-8">
-        <h1 className="text-4xl font-bold">Heightmap to 3D</h1>
+        <h1 className="text-4xl font-bold">Image to 3D</h1>
       </header>
 
       {/* Main Content */}
@@ -109,63 +118,16 @@ function App() {
         {/* Form Container */}
         <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg shadow">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Checkbox to switch between auto‐generation and direct heightmap */}
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="autoHeightmap"
-                checked={useAutoHeightmap}
-                onChange={(e) => setUseAutoHeightmap(e.target.checked)}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="autoHeightmap"
-                className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-200"
-              >
-                Auto-generate heightmap from image
-              </label>
-            </div>
-
-            {/* Conditionally show either the source image input or heightmap input */}
-            {useAutoHeightmap ? (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                  Source Image (for auto heightmap generation)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  required
-                  onChange={(e) => setSourceImageFile(e.target.files[0])}
-                  className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 
-                             border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
-                />
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                  Heightmap (grayscale image)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  required
-                  onChange={(e) => setHeightmapFile(e.target.files[0])}
-                  className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 
-                             border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
-                />
-              </div>
-            )}
-
-            {/* Color reference (optional) */}
+            {/* Single file input for PNG */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Color Reference (optional)
+                Image (png)
               </label>
               <input
                 type="file"
-                accept="image/*"
-                onChange={(e) => setColorFile(e.target.files[0])}
+                accept="image/png"
+                required
+                onChange={(e) => setImage(e.target.files[0])}
                 className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 
                            border border-gray-300 dark:border-gray-600 rounded-md cursor-pointer"
               />
@@ -322,15 +284,9 @@ function App() {
                 Download Model
               </a>
             </p>
-            {resultFileType === "stl" ? (
-              <div className="mt-4 h-96 border border-gray-300 rounded overflow-hidden">
-                <ModelViewer fileUrl={resultUrl} fileType="stl" />
-              </div>
-            ) : (
-              <p className="text-gray-600 dark:text-gray-300">
-                3D Viewer for PLY is not implemented – please download the file.
-              </p>
-            )}
+            <div className="mt-4 h-96 border border-gray-300 rounded overflow-hidden">
+              <ModelViewer fileUrl={resultUrl} fileType={resultFileType} />
+            </div>
           </div>
         )}
       </main>

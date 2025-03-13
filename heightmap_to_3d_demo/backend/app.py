@@ -3,7 +3,7 @@ import uuid
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from heightmap_to_3d import generate_block_from_heightmap
-from generate_depth import get_grayscale_depth  # new import for depth generation
+from generate_depth import get_grayscale_depth  # ZoeDepth-based function
 
 app = Flask(__name__)
 CORS(app)
@@ -15,43 +15,28 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 @app.route("/api/generate", methods=["POST"])
 def api_generate():
-    # Check for a source image to auto-generate the heightmap.
-    if "source_image" in request.files:
-        image_file = request.files["source_image"]
-        if image_file.filename == "":
-            return jsonify({"error": "No source image selected"}), 400
-        image_filename = str(uuid.uuid4()) + "_" + image_file.filename
-        image_path = os.path.join(UPLOAD_FOLDER, image_filename)
-        image_file.save(image_path)
+    # 1) Check if "color_image" is in the request
+    if "color_image" not in request.files:
+        return jsonify({"error": "No color_image file provided"}), 400
 
-        # Generate heightmap from the source image
-        heightmap_filename = "depth_" + image_filename
-        heightmap_path = os.path.join(UPLOAD_FOLDER, heightmap_filename)
-        try:
-            get_grayscale_depth(image_path, heightmap_path)
-        except Exception as e:
-            return jsonify({"error": f"Error generating heightmap: {str(e)}"}), 500
+    color_image_file = request.files["color_image"]
+    if color_image_file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
 
-    elif "heightmap" in request.files:
-        # Use provided heightmap directly if available.
-        heightmap_file = request.files["heightmap"]
-        if heightmap_file.filename == "":
-            return jsonify({"error": "No heightmap file selected"}), 400
-        heightmap_filename = str(uuid.uuid4()) + "_" + heightmap_file.filename
-        heightmap_path = os.path.join(UPLOAD_FOLDER, heightmap_filename)
-        heightmap_file.save(heightmap_path)
-    else:
-        return jsonify({"error": "No heightmap or source image provided"}), 400
+    # 2) Save the color image
+    color_image_filename = str(uuid.uuid4()) + "_" + color_image_file.filename
+    color_image_path = os.path.join(UPLOAD_FOLDER, color_image_filename)
+    color_image_file.save(color_image_path)
 
-    # Optional: Process color reference if provided.
-    color_ref_path = None
-    if "color_reference" in request.files:
-        color_file = request.files["color_reference"]
-        if color_file and color_file.filename != "":
-            color_filename = str(uuid.uuid4()) + "_" + color_file.filename
-            color_ref_path = os.path.join(UPLOAD_FOLDER, color_filename)
-            color_file.save(color_ref_path)
+    # 3) Generate a grayscale depth image (heightmap) from the color image
+    heightmap_filename = "depth_" + color_image_filename
+    heightmap_path = os.path.join(UPLOAD_FOLDER, heightmap_filename)
+    try:
+        get_grayscale_depth(color_image_path, heightmap_path)
+    except Exception as e:
+        return jsonify({"error": f"Error generating heightmap: {str(e)}"}), 500
 
+    # 4) Retrieve numeric parameters from form data
     try:
         block_width = float(request.form.get("block_width", 100))
         block_length = float(request.form.get("block_length", 100))
@@ -60,18 +45,15 @@ def api_generate():
         base_height = float(request.form.get("base_height", 0))
         mode = request.form.get("mode", "protrude")
         invert = request.form.get("invert", "false").lower() == "true"
-    except Exception:
+    except ValueError:
         return jsonify({"error": "Invalid parameter values"}), 400
 
-    if color_ref_path:
-        ext = ".ply"
-        file_type = "ply"
-    else:
-        ext = ".stl"
-        file_type = "stl"
-    output_filename = str(uuid.uuid4()) + ext
+    # 5) We'll output a .ply file so color can be used
+    file_type = "ply"
+    output_filename = str(uuid.uuid4()) + ".ply"
     output_path = os.path.join(OUTPUT_FOLDER, output_filename)
 
+    # 6) Generate the 3D model using the new heightmap and the original color image as reference
     try:
         generate_block_from_heightmap(
             heightmap_path=heightmap_path,
@@ -83,7 +65,7 @@ def api_generate():
             base_height=base_height,
             mode=mode,
             invert=invert,
-            color_reference=color_ref_path
+            color_reference=color_image_path  # so the .ply includes color
         )
     except Exception as e:
         return jsonify({"error": f"Error generating model: {str(e)}"}), 500
