@@ -62,6 +62,7 @@ function App() {
   const [baseHeight, setBaseHeight] = useState(0);
   const [mode, setMode] = useState("protrude");
   const [invert, setInvert] = useState(false);
+  const [includeColor, setIncludeColor] = useState(false);
 
   // Resulting file
   const [resultUrl, setResultUrl] = useState("");
@@ -91,6 +92,7 @@ function App() {
     formData.append("base_height", baseHeight);
     formData.append("mode", mode);
     formData.append("invert", invert ? "true" : "false");
+    formData.append("include_color", includeColor ? "true" : "false");
 
     try {
       // Post to your /api/generate endpoint
@@ -211,21 +213,39 @@ function App() {
               </div>
             </div>
 
-            {/* Invert heightmap checkbox */}
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="invert"
-                checked={invert}
-                onChange={(e) => setInvert(e.target.checked)}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="invert"
-                className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-200"
-              >
-                Invert Heightmap
-              </label>
+            <div className="flex justify-between mt-4">
+              {/* Invert heightmap checkbox */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="invert"
+                  checked={invert}
+                  onChange={(e) => setInvert(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="invert"
+                  className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+                >
+                  Invert Heightmap
+                </label>
+              </div>
+              {/* Include Color checkbox */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="includeColor"
+                  checked={includeColor}
+                  onChange={(e) => setIncludeColor(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="includeColor"
+                  className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+                >
+                  Include Color
+                </label>
+              </div>
             </div>
 
             {/* Generate button */}

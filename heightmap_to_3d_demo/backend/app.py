@@ -45,15 +45,22 @@ def api_generate():
         base_height = float(request.form.get("base_height", 0))
         mode = request.form.get("mode", "protrude")
         invert = request.form.get("invert", "false").lower() == "true"
+        include_color = request.form.get("include_color", "false").lower() == "true"  # new parameter
     except ValueError:
         return jsonify({"error": "Invalid parameter values"}), 400
 
-    # 5) We'll output a .ply file so color can be used
-    file_type = "ply"
-    output_filename = str(uuid.uuid4()) + ".ply"
+    # 5) Set output file type and filename based on include_color
+    if include_color:
+        file_type = "ply"
+        color_reference_param = color_image_path
+        output_filename = str(uuid.uuid4()) + ".ply"
+    else:
+        file_type = "stl"
+        color_reference_param = None
+        output_filename = str(uuid.uuid4()) + ".stl"
     output_path = os.path.join(OUTPUT_FOLDER, output_filename)
 
-    # 6) Generate the 3D model using the new heightmap and the original color image as reference
+    # 6) Generate the 3D model using the new heightmap and the original color image as reference (if needed)
     try:
         generate_block_from_heightmap(
             heightmap_path=heightmap_path,
@@ -65,7 +72,7 @@ def api_generate():
             base_height=base_height,
             mode=mode,
             invert=invert,
-            color_reference=color_image_path  # so the .ply includes color
+            color_reference=color_reference_param  # Only provided if include_color is True
         )
     except Exception as e:
         return jsonify({"error": f"Error generating model: {str(e)}"}), 500
