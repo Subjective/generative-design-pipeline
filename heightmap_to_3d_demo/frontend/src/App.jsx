@@ -51,7 +51,7 @@ function ModelViewer({ fileUrl, fileType }) {
 }
 
 function App() {
-  // The only file needed is a png image
+  // The only file needed is an image
   const [image, setImage] = useState(null);
 
   // Model parameters
@@ -120,14 +120,14 @@ function App() {
         {/* Form Container */}
         <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg shadow">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Single file input for PNG */}
+            {/* File input for image */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Image (png)
+                Image
               </label>
               <input
                 type="file"
-                accept="image/png"
+                accept="image/*"
                 required
                 onChange={(e) => setImage(e.target.files[0])}
                 className="mt-1 block w-full text-sm text-gray-900 bg-white dark:bg-gray-700 
